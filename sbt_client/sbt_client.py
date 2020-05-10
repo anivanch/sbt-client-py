@@ -29,7 +29,12 @@ SbtServerUri = t.NewType("SbtServerUri", str)
 
 
 def _create_sbt_process() -> subprocess.Popen:
-    return subprocess.Popen("sbt")
+    return subprocess.Popen(
+        "sbt",
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 class SbtConnection(t.NamedTuple):
