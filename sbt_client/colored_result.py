@@ -12,6 +12,6 @@ _colored_level: t.Dict[SbtMessageLevel, str] = {
 
 
 def colored_result(result: ExecutionResult, debug: bool = False) -> t.Iterator[str]:
-    for level, message in result:
-        if level is not SbtMessageLevel.DEBUG or debug:
-            yield f"{_colored_level[level]} {message}"
+    for message in result.messages:
+        if message.level is not SbtMessageLevel.DEBUG or debug:
+            yield f"{_colored_level[message.level]} {message.content}"

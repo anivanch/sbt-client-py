@@ -93,12 +93,22 @@ class SbtMessageLevel(Enum):
     DEBUG = 4
 
 
-SbtMessage = t.NewType("SbtMessage", str)
-ExecutionResult = t.List[t.Tuple[SbtMessageLevel, SbtMessage]]
+class SbtMessage(t.NamedTuple):
+    level: SbtMessageLevel
+    content: str
 
 
-def _execution_result() -> ExecutionResult:
-    return []
+class ExecutionResult:
+    levels: t.Set[SbtMessageLevel]
+    messages: t.List[SbtMessage]
+
+    def __init__(self) -> None:
+        self.levels = set()
+        self.messages = []
+
+    def add(self, message: SbtMessage) -> None:
+        self.levels.add(message.level)
+        self.messages.append(message)
 
 
 def _handle_response(response: RpcResponse, result: ExecutionResult) -> bool:
@@ -113,12 +123,12 @@ def _handle_response(response: RpcResponse, result: ExecutionResult) -> bool:
         return True
     if isinstance(response, LogMessageRequest):
         level = SbtMessageLevel(response.params.type)
-        result.append((level, SbtMessage(response.params.message)))
+        result.add(SbtMessage(level, response.params.message))
     else:
         for diagnostic in response.params.diagnostics:
             level = SbtMessageLevel(diagnostic.severity)
-            result.append(
-                (level, SbtMessage(_print_diagnostic(response.params.uri, diagnostic)))
+            result.add(
+                SbtMessage(level, _print_diagnostic(response.params.uri, diagnostic))
             )
     return False
 
@@ -169,9 +179,10 @@ class SbtClient:
         self, sbt_commands: t.List[str], timeout_s: float = 60
     ) -> ExecutionResult:
         results = [await self.execute(command, timeout_s) for command in sbt_commands]
-        final_result = _execution_result()
+        final_result = ExecutionResult()
         for result in results:
-            final_result += result
+            for message in result.messages:
+                final_result.add(message)
         return final_result
 
     async def execute(self, sbt_command: str, timeout_s: float = 60) -> ExecutionResult:
@@ -203,7 +214,7 @@ class SbtClient:
         self._logger.debug(f"Sending rpc request: {request}")
         writer.write(request.encode("utf-8"))
         await writer.drain()
-        result = _execution_result()
+        result = ExecutionResult()
         while True:
             headers = await _read_headers(reader)
             content_length = _get_content_length(headers)
