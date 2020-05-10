@@ -9,5 +9,5 @@ setup(
     url="https://github.com/anivanch/sbt-client-py",
     packages=find_packages(exclude=("tests", "tests.*")),
     install_requires=["pydantic"],
-    python_requires=">=3.8",
+    python_requires=">=3.7",
 )
