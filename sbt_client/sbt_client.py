@@ -144,7 +144,7 @@ def _handle_response(
 def _print_diagnostic(uri: str, diagnostic: Diagnostic) -> str:
     buffer = io.StringIO()
     filename = uri.replace("file://", "")
-    with open(filename) as error_file:
+    with open(filename, "r") as error_file:
         for _ in range(diagnostic.range.start.line):
             error_file.readlines()
         error_line = error_file.readline()
@@ -156,7 +156,7 @@ def _print_diagnostic(uri: str, diagnostic: Diagnostic) -> str:
         )
         buffer.write(message)
         buffer.write(error_line + "\n")
-        buffer.write(" " * diagnostic.range.start.character + "^\n")
+        buffer.write(" " * diagnostic.range.start.character + "^")
     return buffer.getvalue()
 
 
