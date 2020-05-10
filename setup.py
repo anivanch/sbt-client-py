@@ -8,6 +8,6 @@ setup(
     author="Andrei Ivanchenko",
     url="https://github.com/anivanch/sbt-client-py",
     packages=find_packages(exclude=("tests", "tests.*")),
-    install_requires=["pydantic"],
+    install_requires=["pydantic==1.5.1", "colorama==0.4.3"],
     python_requires=">=3.7",
 )

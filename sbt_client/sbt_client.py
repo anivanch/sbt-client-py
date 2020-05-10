@@ -13,7 +13,6 @@ from asyncio import (
     StreamWriter,
 )
 from enum import Enum
-from collections import defaultdict
 from sbt_client.models import (
     RpcRequest,
     RpcResponse,
@@ -98,11 +97,11 @@ class SbtMessageLevel(Enum):
 
 
 SbtMessage = t.NewType("SbtMessage", str)
-ExecutionResult = t.Dict[SbtMessageLevel, t.List[SbtMessage]]
+ExecutionResult = t.List[t.Tuple[SbtMessageLevel, SbtMessage]]
 
 
 def _execution_result() -> ExecutionResult:
-    return defaultdict(list)
+    return []
 
 
 def _handle_response(response: RpcResponse, result: ExecutionResult) -> bool:
@@ -117,12 +116,12 @@ def _handle_response(response: RpcResponse, result: ExecutionResult) -> bool:
         return True
     if isinstance(response, LogMessageRequest):
         level = SbtMessageLevel(response.params.type)
-        result[level].append(SbtMessage(response.params.message))
+        result.append((level, SbtMessage(response.params.message)))
     else:
         for diagnostic in response.params.diagnostics:
             level = SbtMessageLevel(diagnostic.severity)
-            result[level].append(
-                SbtMessage(_print_diagnostic(response.params.uri, diagnostic))
+            result.append(
+                (level, SbtMessage(_print_diagnostic(response.params.uri, diagnostic)))
             )
     return False
 
@@ -174,9 +173,8 @@ class SbtClient:
     ) -> ExecutionResult:
         results = [await self.execute(command, timeout_s) for command in sbt_commands]
         final_result = _execution_result()
-        for level in SbtMessageLevel:
-            for result in results:
-                final_result[level] += result[level]
+        for result in results:
+            final_result += result
         return final_result
 
     async def execute(self, sbt_command: str, timeout_s: float = 60) -> ExecutionResult:

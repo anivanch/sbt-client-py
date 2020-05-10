@@ -3,22 +3,26 @@ import sys
 import asyncio
 import logging
 from sbt_client.sbt_client import SbtClient
+from sbt_client.colored_result import colored_result
 
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     if 1 < len(sys.argv):
-        command = sys.argv[1]
+        commands = sys.argv[1]
     else:
-        command = ""
-    await run_sbt_command(command)
+        commands = ""
+    await run_sbt_commands(commands)
 
 
-async def run_sbt_command(sbt_command: str) -> None:
+async def run_sbt_commands(sbt_command_line: str) -> None:
     working_directory = os.getcwd()
     client = SbtClient(working_directory)
+    commands = sbt_command_line.split(";")
     await client.connect()
-    await client.execute(sbt_command)
+    result = await client.execute_many(commands)
+    for message in colored_result(result):
+        print(message)
 
 
 if __name__ == "__main__":
