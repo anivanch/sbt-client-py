@@ -157,7 +157,7 @@ def _print_diagnostic(uri: str, diagnostic: Diagnostic) -> str:
             diagnostic.message,
         )
         buffer.write(message)
-        buffer.write(error_line + "\n")
+        buffer.write(error_line)
         buffer.write(" " * diagnostic.range.start.character + "^")
     return buffer.getvalue()
 
