@@ -120,10 +120,12 @@ def _handle_response(
     :return: True if sbt finished processing request, False otherwise
     """
     if isinstance(response, RpcError):
+        if response.error.message:
+            result.add(SbtMessage(SbtMessageLevel.ERROR, response.error.message))
         result.add(
             SbtMessage(
                 SbtMessageLevel.ERROR,
-                f"Error processing command: {sbt_command}: {response.error.message}",
+                f"Error(s) occurred when processing command: {sbt_command}",
             )
         )
         return True
@@ -146,7 +148,7 @@ def _print_diagnostic(uri: str, diagnostic: Diagnostic) -> str:
     filename = uri.replace("file://", "")
     with open(filename, "r") as error_file:
         for _ in range(diagnostic.range.start.line):
-            error_file.readlines()
+            error_file.readline()
         error_line = error_file.readline()
         message = "{}:{}:{}: {}\n".format(
             filename,
