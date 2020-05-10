@@ -19,10 +19,9 @@ To use as a script: \
 
 ## Usage
 ### Using as library
-This package mainly provides a single class `SbtClient` with
-a two public methods: `connect` and `execute`. After creating
-a client call `connect` to find an existing sbt server or
-start a new one in case none were found. Then call `execute`
+This package mainly provides a single class `SbtClient`.
+After creating a client, call `connect` to find an existing sbt server or
+start a new one in case none were found. Then call `execute` or `execute_many`
 to run sbt commands. It's important to note that `execute`
 will only run the first sbt command in the submitted line.
 
@@ -39,7 +38,7 @@ is not a valid sbt project (which is determined simply
 by the presence of a `projct` folder and a `build.sbt` file).
 
 ## How it works
-When invoked, a client checks whether or not a `project/target/active.json` file
+When invoked, the client checks whether or not `project/target/active.json` file
 exists (which is always created by the running sbt server and
 deleted on the server shutdown). If not, it starts a new sbt
 server for the project by simply running `sbt` command in a subprocess
