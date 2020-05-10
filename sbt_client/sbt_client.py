@@ -166,8 +166,13 @@ class SbtClient:
 
     async def execute_many(
         self, sbt_commands: t.List[str], timeout_s: float = 60
-    ) -> t.List[ExecutionResult]:
-        return [await self.execute(command, timeout_s) for command in sbt_commands]
+    ) -> ExecutionResult:
+        results = [await self.execute(command, timeout_s) for command in sbt_commands]
+        final_result = _execution_result()
+        for level in SbtMessageLevel:
+            for result in results:
+                final_result[level] += result[level]
+        return final_result
 
     async def execute(self, sbt_command: str, timeout_s: float = 60) -> ExecutionResult:
         """
