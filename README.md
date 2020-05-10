@@ -20,14 +20,19 @@ To use as a script: \
 ## Usage
 ### Using as library
 This package mainly provides a single class `SbtClient` with
-a singe public method `execute`, which for the most part takes a singe argument
-`sbt_command_line`, that may contain any valid sbt command line.
+a two public methods: `connect` and `execute`. After creating
+a client call `connect` to find an existing sbt server or
+start a new one in case none were found. Then call `execute`
+to run sbt commands. It's important to note that `execute`
+will only run the first sbt command in the submitted line.
+
 ### Using as a python script
 You can also run this package using python interpreter.
-Command line arguments will be passed to the client as
-an sbt command line. For example, the following line
-starts a client and runs a `clean` sbt command: \
+First command line argument will be passed to the client as
+an sbt command. For example, the following line
+starts a client and runs `clean`: \
 `python -m sbt_client clean`
+
 ### Caveats
 This client will refuse to work when its working directory
 is not a valid sbt project (which is determined simply

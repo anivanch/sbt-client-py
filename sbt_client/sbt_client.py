@@ -39,12 +39,12 @@ async def _connect_to_server(uri: SbtServerUri) -> t.Tuple[StreamReader, StreamW
 _default_rpc_id: int = 1
 
 
-def _request_sbt_exec(sbt_command_line: str) -> RpcRequest:
+def _request_sbt_exec(sbt_command: str) -> RpcRequest:
     return RpcRequest(
         jsonrpc="2.0",
         id=_default_rpc_id,
         method="sbt/exec",
-        params={"commandLine": sbt_command_line},
+        params={"commandLine": sbt_command},
     )
 
 
@@ -79,8 +79,14 @@ def _check_sbt_project(working_directory: str) -> bool:
     )
 
 
+class SbtConnection(t.NamedTuple):
+    reader: StreamReader
+    writer: StreamWriter
+
+
 class SbtClient:
     _uri_file: str
+    _connection: t.Optional[SbtConnection]
     _logger: logging.Logger
     _uri_file_relative: str = "/project/target/active.json"
     _sleep_duration_s: float = 1
@@ -91,36 +97,43 @@ class SbtClient:
                 f"Current working directory {working_directory} is not an sbt project"
             )
         self._uri_file = working_directory + self._uri_file_relative
+        self._connection = None
         self._logger = logging.getLogger(self.__class__.__name__)
 
-    async def execute(
-        self,
-        sbt_command_line: str,
-        request_timeout_s: float = 1,
-        server_timeout_s: float = 30,
-    ) -> None:
+    async def connect(self, timeout_s: float = 60) -> None:
+        uri = await asyncio.wait_for(
+            self._find_or_create_sbt_server(), timeout=timeout_s,
+        )
+        self._logger.debug(f"Connecting to sbt server at {uri}")
+        reader, writer = await _connect_to_server(uri)
+        self._connection = SbtConnection(reader, writer)
+
+    async def execute(self, sbt_command: str, timeout_s: float = 60,) -> None:
         """
-        :param sbt_command_line: Command line for sbt to execute
-        :param request_timeout_s: Timeout for request to sbt server
-        :param server_timeout_s: Timeout for sbt server to startup
+        :param sbt_command: Command for sbt to execute
+            If several commands are present in this argument,
+            only the first one gets executed
+        :param timeout_s: Timeout for request to sbt server
         :return: Nothing
         :raises:
             SbtError: Error returned from sbt server
             pydantic.ValidationError: In case response parsing went wrong
         """
-        uri = await asyncio.wait_for(
-            self._find_or_create_sbt_server(), timeout=server_timeout_s,
-        )
-        self._logger.debug(f"Connecting to sbt server at {uri}")
-        reader, writer = await _connect_to_server(uri)
+        if self._connection is None:
+            raise RuntimeError(
+                f"Executing sbt command {sbt_command} with no connection to server. "
+                "Please connect to server using `connect` method first"
+            )
+        reader, writer = self._connection
+        first_command = sbt_command.split(";", maxsplit=1)[0]
         await asyncio.wait_for(
-            self._execute(reader, writer, sbt_command_line), timeout=request_timeout_s,
+            self._execute(reader, writer, first_command), timeout=timeout_s,
         )
 
     async def _execute(
-        self, reader: StreamReader, writer: StreamWriter, sbt_command_line: str,
+        self, reader: StreamReader, writer: StreamWriter, sbt_command: str,
     ) -> None:
-        request = _request_to_str(_request_sbt_exec(sbt_command_line))
+        request = _request_to_str(_request_sbt_exec(sbt_command))
         self._logger.debug(f"Sending rpc request: {request}")
         writer.write(request.encode("utf-8"))
         await writer.drain()
@@ -133,7 +146,7 @@ class SbtClient:
             done = self._handle_response(parsed)
             if done:
                 self._logger.info(
-                    f"Sbt command line successfully executed: {sbt_command_line}"
+                    f"Sbt command line successfully executed: {sbt_command}"
                 )
                 return
 
