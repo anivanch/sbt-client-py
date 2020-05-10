@@ -1,9 +1,13 @@
 from .sbt_client import (
     SbtClient,
-    SbtError,
+    SbtMessageLevel,
+    SbtMessage,
+    ExecutionResult,
 )
 
 __all__ = [
     "SbtClient",
-    "SbtError",
+    "SbtMessageLevel",
+    "SbtMessage",
+    "ExecutionResult",
 ]
