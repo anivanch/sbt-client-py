@@ -123,7 +123,7 @@ def _handle_response(
         result.add(
             SbtMessage(
                 SbtMessageLevel.ERROR,
-                f"Error processing command {sbt_command}: {response.error.message}",
+                f"Error processing command: {sbt_command}: {response.error.message}",
             )
         )
         return True
@@ -148,15 +148,15 @@ def _print_diagnostic(uri: str, diagnostic: Diagnostic) -> str:
         for _ in range(diagnostic.range.start.line):
             error_file.readlines()
         error_line = error_file.readline()
-        message = "{}:{}:{}: {}".format(
+        message = "{}:{}:{}: {}\n".format(
             filename,
             diagnostic.range.start.line + 1,
             diagnostic.range.start.character + 1,
             diagnostic.message,
         )
         buffer.write(message)
-        buffer.write(error_line)
-        buffer.write(" " * diagnostic.range.start.character + "^")
+        buffer.write(error_line + "\n")
+        buffer.write(" " * diagnostic.range.start.character + "^\n")
     return buffer.getvalue()
 
 
