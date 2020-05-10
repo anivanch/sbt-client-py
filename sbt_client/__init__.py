@@ -4,12 +4,12 @@ from .sbt_client import (
     SbtMessage,
     ExecutionResult,
 )
-from .colored_result import colored_result
+from .iterate_messages import iterate_messages
 
 __all__ = [
     "SbtClient",
     "SbtMessageLevel",
     "SbtMessage",
     "ExecutionResult",
-    "colored_result",
+    "iterate_messages",
 ]

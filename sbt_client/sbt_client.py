@@ -111,15 +111,23 @@ class ExecutionResult:
         self.messages.append(message)
 
 
-def _handle_response(response: RpcResponse, result: ExecutionResult) -> bool:
+def _handle_response(
+    sbt_command: str, response: RpcResponse, result: ExecutionResult
+) -> bool:
     """
     :param response: Response from sbt server
     :param result: Current execution result, which gets updated in the process
     :return: True if sbt finished processing request, False otherwise
     """
-    if isinstance(response, RpcError) or (
-        isinstance(response, RpcResult) and response.result.status is ResultStatus.DONE
-    ):
+    if isinstance(response, RpcError):
+        result.add(
+            SbtMessage(
+                SbtMessageLevel.ERROR,
+                f"Error processing command {sbt_command}: {response.error.message}",
+            )
+        )
+        return True
+    if isinstance(response, RpcResult) and response.result.status is ResultStatus.DONE:
         return True
     if isinstance(response, LogMessageRequest):
         level = SbtMessageLevel(response.params.type)
@@ -221,7 +229,7 @@ class SbtClient:
             response = await reader.read(content_length)
             parsed = _parse_response(response.decode("utf-8"))
             self._logger.debug(f"Received rpc response: {parsed}")
-            done = _handle_response(parsed, result)
+            done = _handle_response(sbt_command, parsed, result)
             if done:
                 self._logger.info(
                     f"Sbt command line successfully executed: {sbt_command}"

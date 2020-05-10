@@ -3,7 +3,7 @@ import sys
 import asyncio
 import logging
 from sbt_client.sbt_client import SbtClient
-from sbt_client.colored_result import colored_result
+from sbt_client.iterate_messages import iterate_messages
 
 
 async def main() -> None:
@@ -21,7 +21,7 @@ async def run_sbt_commands(sbt_command_line: str) -> None:
     commands = sbt_command_line.split(";")
     await client.connect()
     result = await client.execute_many(commands)
-    for message in colored_result(result):
+    for message in iterate_messages(result):
         print(message)
 
 
