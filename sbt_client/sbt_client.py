@@ -97,12 +97,13 @@ class SbtClient:
         self,
         sbt_command_line: str,
         request_timeout_s: float = 1,
-        server_timeout_s: float = 20,
+        server_timeout_s: float = 30,
     ) -> None:
         """
         :param sbt_command_line: Command line for sbt to execute
         :param request_timeout_s: Timeout for request to sbt server
         :param server_timeout_s: Timeout for sbt server to startup
+        :return: Nothing
         :raises:
             SbtError: Error returned from sbt server
             pydantic.ValidationError: In case response parsing went wrong

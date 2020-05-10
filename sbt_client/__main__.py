@@ -6,7 +6,7 @@ from sbt_client.sbt_client import SbtClient
 
 
 async def main() -> None:
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     command_line = " ".join(sys.argv[1:])
     await run_sbt_command_line(command_line)
 
