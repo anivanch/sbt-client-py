@@ -149,6 +149,7 @@ class SbtClient:
                     f"Sbt command line successfully executed: {sbt_command}"
                 )
                 return
+            await asyncio.sleep(0)  # Avoid blocking
 
     async def _find_or_create_sbt_server(self) -> SbtServerUri:
         if not self._server_is_running():
