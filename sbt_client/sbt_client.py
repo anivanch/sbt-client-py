@@ -32,8 +32,14 @@ def _create_sbt_process() -> subprocess.Popen:
     return subprocess.Popen("sbt")
 
 
-async def _connect_to_server(uri: SbtServerUri) -> t.Tuple[StreamReader, StreamWriter]:
-    return await asyncio.open_unix_connection(path=uri)
+class SbtConnection(t.NamedTuple):
+    reader: StreamReader
+    writer: StreamWriter
+
+
+async def _connect_to_server(uri: SbtServerUri) -> SbtConnection:
+    reader, writer = await asyncio.open_unix_connection(path=uri)
+    return SbtConnection(reader, writer)
 
 
 _default_rpc_id: int = 1
@@ -77,11 +83,6 @@ def _check_sbt_project(working_directory: str) -> bool:
     return os.path.isdir(working_directory + "/project") and os.path.isfile(
         working_directory + "/build.sbt"
     )
-
-
-class SbtConnection(t.NamedTuple):
-    reader: StreamReader
-    writer: StreamWriter
 
 
 class SbtMessageLevel(Enum):
@@ -161,10 +162,14 @@ class SbtClient:
             self._find_or_create_sbt_server(), timeout=timeout_s,
         )
         self._logger.debug(f"Connecting to sbt server at {uri}")
-        reader, writer = await _connect_to_server(uri)
-        self._connection = SbtConnection(reader, writer)
+        self._connection = await _connect_to_server(uri)
 
-    async def execute(self, sbt_command: str, timeout_s: float = 60,) -> None:
+    async def execute_many(
+        self, sbt_commands: t.List[str], timeout_s: float = 60
+    ) -> t.List[ExecutionResult]:
+        return [await self.execute(command, timeout_s) for command in sbt_commands]
+
+    async def execute(self, sbt_command: str, timeout_s: float = 60) -> ExecutionResult:
         """
         :param sbt_command: Command for sbt to execute
             If several commands are present in this argument,
@@ -172,6 +177,7 @@ class SbtClient:
         :param timeout_s: Timeout for request to sbt server
         :return: Nothing
         :raises:
+            RuntimeError: If client is not connected to a server
             pydantic.ValidationError: In case response parsing went wrong
         """
         if self._connection is None:
@@ -181,7 +187,7 @@ class SbtClient:
             )
         reader, writer = self._connection
         first_command = sbt_command.split(";", maxsplit=1)[0]
-        await asyncio.wait_for(
+        return await asyncio.wait_for(
             self._execute(reader, writer, first_command), timeout=timeout_s,
         )
 
