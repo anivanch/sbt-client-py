@@ -53,7 +53,7 @@ def _parse_response(response: str) -> RpcResponse:
 
 
 def _request_to_str(request: RpcRequest) -> str:
-    request_str = str(request._asdict()).replace("'", '"')
+    request_str = str(dict(request._asdict())).replace("'", '"')
     with_headers = f"Content-Length: {len(request_str) + 2}\r\n\r\n{request_str}\r\n"
     return with_headers
 
