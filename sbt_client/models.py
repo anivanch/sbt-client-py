@@ -36,15 +36,15 @@ class DiagnosticParams(BaseModel):
     diagnostics: t.List[Diagnostic]
 
 
-class LogMessageRequest(BaseModel):
+class LogMessageEvent(BaseModel):
     params: LogMessageParams
 
 
-class DiagnosticRequest(BaseModel):
+class DiagnosticEvent(BaseModel):
     params: DiagnosticParams
 
 
-IncomingRpcRequest = t.Union[LogMessageRequest, DiagnosticRequest]
+RpcEvent = t.Union[LogMessageEvent, DiagnosticEvent]
 
 
 class ResultStatus(Enum):
@@ -70,4 +70,4 @@ class RpcError(BaseModel):
     error: ErrorBody
 
 
-RpcResponse = t.Union[RpcResult, RpcError, IncomingRpcRequest]
+RpcResponse = t.Union[RpcResult, RpcError, RpcEvent]

@@ -19,7 +19,7 @@ from sbt_client.models import (
     RpcError,
     RpcResult,
     ResultStatus,
-    LogMessageRequest,
+    LogMessageEvent,
     Diagnostic,
 )
 
@@ -55,8 +55,15 @@ def _request_sbt_exec(sbt_command: str) -> RpcRequest:
     )
 
 
+class ParseError(Exception):
+    """Error parsing response from sbt server."""
+
+
 def _parse_response(response: str) -> RpcResponse:
-    return pydantic.parse_obj_as(RpcResponse, json.loads(response))  # type: ignore
+    try:
+        return pydantic.parse_obj_as(RpcResponse, json.loads(response))  # type: ignore
+    except pydantic.ValidationError:
+        raise ParseError(f"Unexpected response: {response}")
 
 
 def _request_to_str(request: RpcRequest) -> str:
@@ -98,7 +105,7 @@ class SbtMessage(t.NamedTuple):
     content: str
 
 
-class ExecutionResult:
+class SbtResult:
     levels: t.Set[SbtMessageLevel]
     messages: t.List[SbtMessage]
 
@@ -111,9 +118,7 @@ class ExecutionResult:
         self.messages.append(message)
 
 
-def _handle_response(
-    sbt_command: str, response: RpcResponse, result: ExecutionResult
-) -> bool:
+def _handle_response(response: RpcResponse, result: SbtResult) -> bool:
     """
     :param response: Response from sbt server
     :param result: Current execution result, which gets updated in the process
@@ -124,14 +129,13 @@ def _handle_response(
             result.add(SbtMessage(SbtMessageLevel.ERROR, response.error.message))
         result.add(
             SbtMessage(
-                SbtMessageLevel.ERROR,
-                f"Error(s) occurred when processing command: {sbt_command}",
+                SbtMessageLevel.ERROR, f"Error(s) occurred when processing sbt command",
             )
         )
         return True
     if isinstance(response, RpcResult) and response.result.status is ResultStatus.DONE:
         return True
-    if isinstance(response, LogMessageRequest):
+    if isinstance(response, LogMessageEvent):
         level = SbtMessageLevel(response.params.type)
         result.add(SbtMessage(level, response.params.message))
     else:
@@ -187,15 +191,15 @@ class SbtClient:
 
     async def execute_many(
         self, sbt_commands: t.List[str], timeout_s: float = 60
-    ) -> ExecutionResult:
+    ) -> SbtResult:
         results = [await self.execute(command, timeout_s) for command in sbt_commands]
-        final_result = ExecutionResult()
+        final_result = SbtResult()
         for result in results:
             for message in result.messages:
                 final_result.add(message)
         return final_result
 
-    async def execute(self, sbt_command: str, timeout_s: float = 60) -> ExecutionResult:
+    async def execute(self, sbt_command: str, timeout_s: float = 60) -> SbtResult:
         """
         :param sbt_command: Command for sbt to execute
             If several commands are present in this argument,
@@ -204,38 +208,34 @@ class SbtClient:
         :return: Nothing
         :raises:
             RuntimeError: If client is not connected to a server
-            pydantic.ValidationError: In case response parsing went wrong
+            ParseError: In case response parsing went wrong
         """
+        first_command = sbt_command.split(";", maxsplit=1)[0]
+        return await asyncio.wait_for(
+            self._request(_request_sbt_exec(first_command)), timeout=timeout_s,
+        )
+
+    async def _request(self, request: RpcRequest) -> SbtResult:
         if self._connection is None:
             raise RuntimeError(
-                f"Executing sbt command {sbt_command} with no connection to server. "
+                "Executing sbt command with no connection to server. "
                 "Please connect to server using `connect` method first"
             )
         reader, writer = self._connection
-        first_command = sbt_command.split(";", maxsplit=1)[0]
-        return await asyncio.wait_for(
-            self._execute(reader, writer, first_command), timeout=timeout_s,
-        )
-
-    async def _execute(
-        self, reader: StreamReader, writer: StreamWriter, sbt_command: str,
-    ) -> ExecutionResult:
-        request = _request_to_str(_request_sbt_exec(sbt_command))
-        self._logger.debug(f"Sending rpc request: {request}")
-        writer.write(request.encode("utf-8"))
+        request_str = _request_to_str(request)
+        self._logger.debug(f"Sending rpc request: {request_str}")
+        writer.write(request_str.encode("utf-8"))
         await writer.drain()
-        result = ExecutionResult()
+        result = SbtResult()
         while True:
             headers = await _read_headers(reader)
             content_length = _get_content_length(headers)
             response = await reader.read(content_length)
             parsed = _parse_response(response.decode("utf-8"))
             self._logger.debug(f"Received rpc response: {parsed}")
-            done = _handle_response(sbt_command, parsed, result)
+            done = _handle_response(parsed, result)
             if done:
-                self._logger.info(
-                    f"Sbt command line successfully executed: {sbt_command}"
-                )
+                self._logger.info(f"Done")
                 return result
 
     async def _find_or_create_sbt_server(self) -> SbtServerUri:

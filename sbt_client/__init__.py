@@ -2,7 +2,7 @@ from .sbt_client import (
     SbtClient,
     SbtMessageLevel,
     SbtMessage,
-    ExecutionResult,
+    SbtResult,
 )
 from .iterate_messages import iterate_messages
 
@@ -10,6 +10,6 @@ __all__ = [
     "SbtClient",
     "SbtMessageLevel",
     "SbtMessage",
-    "ExecutionResult",
+    "SbtResult",
     "iterate_messages",
 ]

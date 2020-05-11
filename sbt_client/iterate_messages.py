@@ -1,6 +1,6 @@
 import typing as t
 from colorama import Fore, Style
-from sbt_client.sbt_client import SbtMessageLevel, ExecutionResult
+from sbt_client.sbt_client import SbtMessageLevel, SbtResult
 
 
 _colored_level: t.Dict[SbtMessageLevel, str] = {
@@ -11,7 +11,7 @@ _colored_level: t.Dict[SbtMessageLevel, str] = {
 }
 
 
-def iterate_messages(result: ExecutionResult, debug: bool = False) -> t.Iterator[str]:
+def iterate_messages(result: SbtResult, debug: bool = False) -> t.Iterator[str]:
     for message in result.messages:
         if message.level is not SbtMessageLevel.DEBUG or debug:
             yield f"{_colored_level[message.level]} {message.content}"
